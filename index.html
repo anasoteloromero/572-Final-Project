@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wisconsin Deep Time</title>
+
+  <style>
+    :root{
+      --px-per-ma: 10;
+      --side-pad: 18px;
+      --ruler-width: 140px;
+      --top-pad: 16px;
+    }
+
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background:#ffffff;
+      color:#111111;
+    }
+
+    .ruler-wrap{
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: calc(var(--ruler-width) + (2 * var(--side-pad)));
+      padding: var(--top-pad) var(--side-pad);
+      box-sizing: border-box;
+      background: rgba(255,255,255,0.92);
+      border-right: 1px solid rgba(0,0,0,0.10);
+      z-index: 10;
+    }
+
+    .title{
+      font-size: 14px;
+      margin: 0 0 10px 0;
+      color: rgba(0,0,0,0.70);
+      line-height: 1.2;
+    }
+
+    .ruler{
+      position: relative;
+      height: calc(100vh - 64px);
+      width: var(--ruler-width);
+      border-left: 2px solid rgba(0,0,0,0.35);
+      margin-left: 10px;
+    }
+
+    /* baseline ticks */
+    .tick{
+      position: absolute;
+      left: -2px;
+      height: 0;
+      width: 10px;
+      border-top: 1px solid rgba(0,0,0,0.65);
+    }
+    .tick.major{
+      width: 18px;
+      border-top-width: 2px;
+      border-top-color: rgba(0,0,0,0.85);
+    }
+
+    /* Moving marker + readout bubble (keep this!) */
+    .marker{
+      position: absolute;
+      left: -6px;
+      transform: translateY(-50%);
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #111;
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.10);
+      z-index: 4;
+    }
+
+    .marker-readout{
+      position: absolute;
+      left: 24px;
+      transform: translateY(-50%);
+      padding: 4px 8px;
+      border: 1px solid rgba(0,0,0,0.12);
+      border-radius: 999px;
+      background: #fff;
+      font-size: 12px;
+      color: rgba(0,0,0,0.80);
+      white-space: nowrap;
+      z-index: 4;
+    }
+
+    /* ===== Event markers on ruler ===== */
+    .event-range{
+      position: absolute;
+      left: -3px;             /* sit on the ruler line */
+      width: 6px;             /* thickness of the range bar */
+      border-radius: 999px;
+      background: rgba(0,0,0,0.88);
+      opacity: 0.9;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .event-dot{
+      position: absolute;
+      left: -7px;             /* center on ruler line */
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #111;
+      border: 2px solid #fff; /* makes it crisp on the line */
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
+      cursor: pointer;
+      z-index: 3;
+    }
+
+    .event-dot:hover,
+    .event-range:hover{
+      opacity: 1;
+      transform: translateY(-50%) scale(1.06);
+    }
+
+    main{
+      margin-left: calc(var(--ruler-width) + (2 * var(--side-pad)) + 10px);
+      padding: 24px 24px 80px 24px;
+      max-width: none;
+    }
+
+    .hint{
+      font-size: 14px;
+      color: rgba(0,0,0,0.65);
+      line-height: 1.4;
+      margin-bottom: 20px;
+    }
+
+    #scrollSpacer{
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      border: 1px dashed rgba(0,0,0,0.15);
+      background: rgba(0,0,0,0.02);
+      overflow: visible;
+    }
+
+    #eventsLayer{
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .event{
+      position: absolute;
+      left: 0;
+      right: 0;
+      transform: translateY(-50%);
+      pointer-events: auto;
+    }
+
+
+    .event h2{
+      margin: 0 0 6px 0;
+      font-size: 16px;
+    }
+
+    .event .age{
+      font-size: 12px;
+      color: rgba(0,0,0,0.65);
+      margin-bottom: 10px;
+    }
+
+    .map-frame img{
+      display:block;
+      width:100%;
+      
+      object-fit: auto;
+    }
+
+    @media (max-width: 820px){
+      .event{ grid-template-columns: 1fr; }
+    }
+
+    .endnote{
+      margin-top: 16px;
+      font-size: 13px;
+      color: rgba(0,0,0,0.60);
+    }
+  </style>
+</head>
+
+<body>
+  <aside class="ruler-wrap">
+    <p class="title" id="titleText"></p>
+    <div class="ruler" id="ruler">
+      <div class="marker" id="marker"></div>
+      <div class="marker-readout" id="readout"></div>
+      <!-- event dots + bars injected here -->
+    </div>
+  </aside>
+
+  <main>
+    <div class="hint" id="hintText"></div>
+
+    <div id="scrollSpacer">
+      <div id="eventsLayer"></div>
+    </div>
+
+    <div class="endnote" id="endNote"></div>
+  </main>
+
+  <script>
+    // ===== TIME CONFIG =====
+    const startGa = 4.54;
+    const endGa   = 0.10;
+
+    const startMa = startGa * 1000;
+    const endMa   = endGa * 1000;
+    const rangeMa = startMa - endMa;
+
+    // ===== EVENTS =====
+    // Use maStart/maEnd for true ranges. Single-age cards can just set both equal.
+    const events = [
+      {
+  maStart: 3000, maEnd: 2700, ma: 2800,
+  title: "Archean",
+  mapSrc: "maps/archean.svg",
+ 
+},
+
+      { maStart: 2600, maEnd: 2400, ma: 2500, title: "Archean–Proterozoic", mapSrc: "maps/Archean_Proterozoic.svg" },
+
+      { maStart: 2000, maEnd: 1800, ma: 1900, title: "Lower Proterozoic Intrusive", mapSrc: "maps/Lower_proterozoic_intrusive.svg" },
+      { maStart: 1800, maEnd: 1600, ma: 1700, title: "Lower Proterozoic (gr + qt)", mapSrc: "maps/lower_proterozoic_gr_qt.svg" },
+
+      { maStart: 1500, maEnd: 1000, ma: 1250, title: "Mid Proterozoic (1500–1000 Ma)", mapSrc: "maps/mid_proterozoic.svg" },
+
+      { maStart: 800,  maEnd: 700,  ma: 750,  title: "Late Proterozoic", mapSrc: "maps/late_proterozoic.svg" },
+      { maStart: 560,  maEnd: 520,  ma: 541,  title: "Early Cambrian", mapSrc: "maps/early_cambrian.svg" },
+      { maStart: 500,  maEnd: 470,  ma: 485,  title: "Ordovician", mapSrc: "maps/ordovician.svg" },
+
+      { maStart: 440,  maEnd: 340,  ma: 390,  title: "Late Ordovician–Devonian (440–340 Ma)", mapSrc: "maps/late_ordo_dev.svg" },
+
+      { maStart: 110,  maEnd: 90,   ma: 100,  title: "Cretaceous", mapSrc: "maps/cretaceous.svg" },
+    ];
+
+    // ===== DOM =====
+    const ruler = document.getElementById('ruler');
+    const marker = document.getElementById('marker');
+    const readout = document.getElementById('readout');
+    const scrollSpacer = document.getElementById('scrollSpacer');
+    const eventsLayer = document.getElementById('eventsLayer');
+
+    const titleText = document.getElementById('titleText');
+    const hintText = document.getElementById('hintText');
+    const endNote = document.getElementById('endNote');
+
+    titleText.innerHTML = `Wisconsin Deep Time<br>${startGa.toFixed(2)} Ga → ${endGa.toFixed(2)} Ga`;
+    hintText.innerHTML  = `Scroll down. The left ruler is proportional time. Bold bars show each card’s time range; dots are clickable and jump to the card.`;
+    endNote.textContent = `Bottom of the dashed area = ${endMa} Ma (${endGa.toFixed(2)} Ga).`;
+
+    // ===== SCROLL SCALE =====
+    const pxPerMa = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px-per-ma'));
+    const scrollHeightPx = Math.round(rangeMa * pxPerMa);
+    scrollSpacer.style.height = `${scrollHeightPx}px`;
+
+    // Baseline tick spacing
+    const majorStepMa = 100;   // every 100 Ma
+    const labelStepMa = 500;   // thicker every 500 Ma (no labels)
+
+    function gaLabelFromMa(ma){
+      return `${(ma / 1000).toFixed(3)} Ga`;
+    }
+
+    function yInRulerForMa(ma){
+      const progress = (startMa - ma) / rangeMa;
+      return progress * ruler.clientHeight;
+    }
+
+    function yInSpacerForMa(ma){
+      const progress = (startMa - ma) / rangeMa;
+      return progress * scrollHeightPx;
+    }
+
+    function clampMa(ma){
+      return Math.min(startMa, Math.max(endMa, ma));
+    }
+
+    // Scroll to a specific Ma (positions the card nicely in view)
+    function scrollToMa(ma){
+      const yInSpacer = yInSpacerForMa(ma);
+      const spacerTopAbs = scrollSpacer.getBoundingClientRect().top + window.scrollY;
+      const target = spacerTopAbs + yInSpacer - 120; // offset so card isn't flush to top
+
+      window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    }
+
+    // ===== RULER: baseline ticks + event range bars + clickable dots =====
+    function buildRuler(){
+      // Clear old ticks/markers (but keep marker/readout)
+      ruler.querySelectorAll('.tick, .event-range, .event-dot').forEach(n => n.remove());
+
+      // Baseline ticks
+      for(let ma = startMa; ma >= endMa; ma -= majorStepMa){
+        const isMajor = (Math.round(ma) % labelStepMa === 0);
+
+        const tick = document.createElement('div');
+        tick.className = `tick${isMajor ? ' major' : ''}`;
+        tick.style.top = `${yInRulerForMa(ma)}px`;
+        ruler.appendChild(tick);
+      }
+
+      // Event range bars + dots
+      events.forEach((e, idx) => {
+        const lo = clampMa(Math.min(e.maStart ?? e.ma, e.maEnd ?? e.ma));
+        const hi = clampMa(Math.max(e.maStart ?? e.ma, e.maEnd ?? e.ma));
+        const mid = clampMa(e.ma ?? ((lo + hi) / 2));
+
+        const yTop = yInRulerForMa(hi);
+        const yBot = yInRulerForMa(lo);
+        const height = Math.max(8, yBot - yTop);
+
+        const bar = document.createElement('div');
+        bar.className = 'event-range';
+        bar.style.top = `${yTop}px`;
+        bar.style.height = `${height}px`;
+        bar.title = `${e.title} (${hi}–${lo} Ma)`;
+        bar.addEventListener('click', () => scrollToMa(mid));
+        ruler.appendChild(bar);
+
+        const dot = document.createElement('div');
+        dot.className = 'event-dot';
+        dot.style.top = `${yInRulerForMa(mid)}px`;
+        dot.style.transform = 'translateY(-50%)';
+        dot.title = `${e.title} — jump`;
+        dot.addEventListener('click', () => scrollToMa(mid));
+        ruler.appendChild(dot);
+      });
+    }
+
+    // ===== MARKER + moving readout bubble =====
+    function updateFromScroll(){
+      const spacerTopAbs = scrollSpacer.getBoundingClientRect().top + window.scrollY;
+      const raw = (window.scrollY - spacerTopAbs) / scrollHeightPx;
+      const progress = Math.min(1, Math.max(0, raw));
+
+      const y = progress * ruler.clientHeight;
+      marker.style.top = `${y}px`;
+      readout.style.top = `${y}px`;
+
+      const currentMa = startMa - (progress * rangeMa);
+      readout.textContent = gaLabelFromMa(currentMa);
+    }
+
+    // ===== EVENTS RENDER =====
+    function addEvent(e){
+      const el = document.createElement('section');
+      el.className = 'event';
+      el.style.top = `${yInSpacerForMa(e.ma)}px`;
+
+      el.innerHTML = `
+        <div class="map-frame">
+          <img src="${e.mapSrc}" alt="${e.title}">
+        </div>
+      `;
+
+      eventsLayer.appendChild(el);
+    }
+
+
+
+    // ===== INIT =====
+    // Build after layout exists so ruler has height
+    window.addEventListener('load', () => {
+      buildRuler();
+      events.forEach(addEvent);
+      updateFromScroll();
+    });
+
+    window.addEventListener('scroll', updateFromScroll, { passive: true });
+    window.addEventListener('resize', () => {
+      buildRuler();
+      updateFromScroll();
+    });
+  </script>
+</body>
+</html>
