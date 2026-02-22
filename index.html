@@ -7,19 +7,22 @@
 
   <style>
     :root{
-      --px-per-ma: 10;
+      --px-per-ma: 25;
       --side-pad: 18px;
       --ruler-width: 140px;
       --top-pad: 16px;
     }
 
     body{
-      margin:0;
+      margin: 0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background:#ffffff;
-      color:#111111;
+      background: #ffffff;
+      color: #111111;
     }
 
+    /* =========================
+       LEFT RULER
+    ========================== */
     .ruler-wrap{
       position: fixed;
       top: 0;
@@ -48,13 +51,43 @@
       margin-left: 10px;
     }
 
-    /* baseline ticks */
+    .eon-layer{
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .eon-block{
+      position: absolute;
+      left: -10px;
+      width: calc(var(--ruler-width) + 10px);
+      border-radius: 10px;
+      opacity: 0.60;
+      border: 1px solid rgba(0,0,0,0.10);
+      box-sizing: border-box;
+    }
+
+    .eon-label{
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #0a0000;
+    }
+
     .tick{
       position: absolute;
       left: -2px;
       height: 0;
       width: 10px;
       border-top: 1px solid rgba(0,0,0,0.65);
+      z-index: 1;
     }
     .tick.major{
       width: 18px;
@@ -62,7 +95,25 @@
       border-top-color: rgba(0,0,0,0.85);
     }
 
-    /* Moving marker + readout bubble (keep this!) */
+    .event-dot{
+      position: absolute;
+      left: -7px;
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      background: #111;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
+      cursor: pointer;
+      z-index: 3;
+      transform: translateY(-50%);
+    }
+
+    .event-dot:hover{
+      opacity: 1;
+      transform: translateY(-50%) scale(1.06);
+    }
+
     .marker{
       position: absolute;
       left: -6px;
@@ -89,48 +140,13 @@
       z-index: 4;
     }
 
-    /* ===== Event markers on ruler ===== */
-    .event-range{
-      position: absolute;
-      left: -3px;             /* sit on the ruler line */
-      width: 6px;             /* thickness of the range bar */
-      border-radius: 999px;
-      background: rgba(0,0,0,0.88);
-      opacity: 0.9;
-      cursor: pointer;
-      z-index: 2;
-    }
-
-    .event-dot{
-      position: absolute;
-      left: -7px;             /* center on ruler line */
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
-      background: #111;
-      border: 2px solid #fff; /* makes it crisp on the line */
-      box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
-      cursor: pointer;
-      z-index: 3;
-    }
-
-    .event-dot:hover,
-    .event-range:hover{
-      opacity: 1;
-      transform: translateY(-50%) scale(1.06);
-    }
-
+    /* =========================
+       MAIN CONTENT
+    ========================== */
     main{
       margin-left: calc(var(--ruler-width) + (2 * var(--side-pad)) + 10px);
       padding: 24px 24px 80px 24px;
       max-width: none;
-    }
-
-    .hint{
-      font-size: 14px;
-      color: rgba(0,0,0,0.65);
-      line-height: 1.4;
-      margin-bottom: 20px;
     }
 
     #scrollSpacer{
@@ -142,10 +158,18 @@
       overflow: visible;
     }
 
+    #timeBgLayer{
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
     #eventsLayer{
       position: absolute;
       inset: 0;
       pointer-events: none;
+      z-index: 1;
     }
 
     .event{
@@ -156,33 +180,180 @@
       pointer-events: auto;
     }
 
-
-    .event h2{
-      margin: 0 0 6px 0;
-      font-size: 16px;
+    .event.event-context{
+      transform: none;
     }
 
-    .event .age{
-      font-size: 12px;
-      color: rgba(0,0,0,0.65);
-      margin-bottom: 10px;
+    .event.event-map{
+      transform: none; /* top aligned */
+    }
+
+    /* =========================
+       MAP CARD
+    ========================== */
+    .map-frame{
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 32px;
+      background: rgba(255,255,255,0.92);
+      border-radius: 22px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
     }
 
     .map-frame img{
-      display:block;
-      width:100%;
-      
-      object-fit: auto;
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    /* =========================
+       CONTEXT BLOCKS
+    ========================== */
+    .context-block{
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 70px 40px;
+    }
+
+    .context-inner{
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.18);
+      border-radius: 22px;
+      padding: 34px 34px;
+      box-shadow: 0 10px 26px rgba(0,0,0,0.06);
+    }
+
+    .context-kicker{
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(0,0,0,0.55);
+      margin-bottom: 10px;
+    }
+
+    .context-title{
+      font-size: 34px;
+      line-height: 1.1;
+      margin: 0 0 14px 0;
+    }
+
+    .context-body{
+      font-size: 16px;
+      line-height: 1.75;
+      color: rgba(0,0,0,0.75);
+      margin: 0;
     }
 
     @media (max-width: 820px){
-      .event{ grid-template-columns: 1fr; }
+      .context-block{ padding: 56px 18px; }
+      .context-inner{ padding: 22px 18px; }
+      .context-title{ font-size: 28px; }
     }
 
-    .endnote{
-      margin-top: 16px;
-      font-size: 13px;
-      color: rgba(0,0,0,0.60);
+    /* Optional: Hadean theme styling */
+.theme-hadean .context-block{
+  position: relative;
+  max-width: 980px;
+  border-radius: 22px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+.theme-hadean .context-block::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(60, 20, 20, 0.18);
+  pointer-events: none;
+}
+
+.theme-hadean .context-inner{
+  position: relative;
+  margin: 36px;
+  padding: 34px 34px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(0,0,0,0.10);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.10);
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 820px){
+  .theme-hadean .context-inner{
+    margin: 18px;
+    padding: 22px 18px;
+  }
+}
+
+/* Archean theme tweak (if you want it) */
+.theme-archean .context-inner{
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.18);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.08);
+}
+
+    /* =========================
+       INTERVAL BACKGROUNDS
+    ========================== */
+    .interval-bg{
+      position: absolute;
+      left: 0;
+      right: 0;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .interval-bg.hadean{
+      background-image: url("images/pattern.jpg");
+      background-repeat: repeat;
+      background-size: 520px auto;
+      background-position: center;
+    }
+    .interval-bg.hadean::after{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.55);
+    }
+
+    .interval-bg.archean{
+      background-image: url("images/stromatolite.jpg");
+      background-repeat: repeat;
+      background-size: 520px auto;
+      background-position: center;
+    }
+    .interval-bg.archean::after{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.60);
+    }
+
+    .interval-bg.proterozoic{
+      background-image: url("images/biff.png");
+      background-repeat: repeat;
+      background-size: 520px auto;
+      background-position: center;
+    }
+    .interval-bg.proterozoic::after{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.62);
+    }
+
+    .interval-bg.phanerozoic{
+      background-image: url("images/water.jpg");
+      background-repeat: repeat;
+      background-size: 520px auto;
+      background-position: center;
+    }
+    .interval-bg.phanerozoic::after{
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.62);
     }
   </style>
 </head>
@@ -191,24 +362,37 @@
   <aside class="ruler-wrap">
     <p class="title" id="titleText"></p>
     <div class="ruler" id="ruler">
+      <div class="eon-layer" id="eonLayer"></div>
       <div class="marker" id="marker"></div>
       <div class="marker-readout" id="readout"></div>
-      <!-- event dots + bars injected here -->
     </div>
   </aside>
 
   <main>
-    <div class="hint" id="hintText"></div>
+    <section class="hero">
+      <h1>Wisconsin Deep Time</h1>
+      <p>A visual journey through 4.5 billion years of geologic history.</p>
+      <p class="hero-description"> This interactive timeline explores the bedrock geology of Wisconsin, beginning with the formation of Earth and moving forward through the Archean, Proterozoic, and Paleozoic eras. As you scroll, time moves proportionally to capture the vast scale of deep time and the processes that shaped the landscape beneath your feet. </p>
+      <p> You can scroll through to also see the what was going on to the whole earth or click through the black dots on the left hand scale to view the major bedrock and geology of Wisconsin. </p>
+    </section>
 
     <div id="scrollSpacer">
+      <div id="timeBgLayer"></div>
       <div id="eventsLayer"></div>
     </div>
 
-    <div class="endnote" id="endNote"></div>
+    <footer class="sources-footer">
+  <div class="sources-inner">
+    <strong>Sources for maps, images, and information:</strong><br>
+    WGNHS · Wikipedia · Geoscience LibreTexts · Mindat
+  </div>
+</footer>
   </main>
 
   <script>
-    // ===== TIME CONFIG =====
+    /* =========================
+       TIME CONFIG
+    ========================== */
     const startGa = 4.54;
     const endGa   = 0.10;
 
@@ -216,50 +400,196 @@
     const endMa   = endGa * 1000;
     const rangeMa = startMa - endMa;
 
-    // ===== EVENTS =====
-    // Use maStart/maEnd for true ranges. Single-age cards can just set both equal.
-    const events = [
-      { maStart: 3000, maEnd: 2700, ma: 2800, title: "Archean", mapSrc: "maps/Archean.svg" }, 
-
-      { maStart: 2600, maEnd: 2400, ma: 2500, title: "Archean–Proterozoic", mapSrc: "maps/Archean_Proterozoic.svg" },
-
-      { maStart: 2000, maEnd: 1800, ma: 1900, title: "Lower Proterozoic Intrusive", mapSrc: "maps/Lower_proterozoic_intrusive.svg" },
-      { maStart: 1800, maEnd: 1600, ma: 1700, title: "Lower Proterozoic (gr + qt)", mapSrc: "maps/lower_proterozoic_gr_qt.svg" },
-
-      { maStart: 1500, maEnd: 1000, ma: 1250, title: "Mid Proterozoic (1500–1000 Ma)", mapSrc: "maps/mid_proterozoic.svg" },
-
-      { maStart: 800,  maEnd: 700,  ma: 750,  title: "Late Proterozoic", mapSrc: "maps/late_proterozoic.svg" },
-      { maStart: 560,  maEnd: 520,  ma: 541,  title: "Early Cambrian", mapSrc: "maps/early_cambrian.svg" },
-      { maStart: 500,  maEnd: 470,  ma: 485,  title: "Ordovician", mapSrc: "maps/ordovician.svg" },
-
-      { maStart: 440,  maEnd: 340,  ma: 390,  title: "Late Ordovician–Devonian (440–340 Ma)", mapSrc: "maps/late_ordo_dev.svg" },
-
-      { maStart: 110,  maEnd: 90,   ma: 100,  title: "Cretaceous", mapSrc: "maps/cretaceous.svg" },
+    const eons = [
+      { name: "Hadean",      maStart: 4540, maEnd: 4000, tone: "rgba(106, 13, 173, 1)" },
+      { name: "Archean",     maStart: 4000, maEnd: 2500, tone: "rgba( 20, 85, 158, 1)" },
+      { name: "Proterozoic", maStart: 2500, maEnd: 541,  tone: "rgba(  0, 128, 90, 1)" },
+      { name: "Phanerozoic", maStart: 541,  maEnd: 0,    tone: "rgba(216,  90, 32, 1)" },
     ];
 
-    // ===== DOM =====
+    const events = [
+ {
+  ma: 4536,
+  title: "Hadean Eon",
+  type: "context",
+  theme: "hadean",
+  kicker: "4.5–4.0 Ga",
+  body: "Earth’s earliest history: a partially molten surface, intense volcanism, and frequent asteroid impacts. Early heat came from gravitational compression, radioactive decay, and impacts."
+},
+{
+  ma: 4500,
+  title: "Differentiation + First Crust",
+  type: "context",
+  kicker: "Cooling from magma ocean",
+  body: "As Earth cooled, minerals crystallized and separated by density. Dense iron and nickel sank to form the core; ultramafic material formed the mantle; lighter, more felsic material rose to form early crust."
+},
+{
+  ma: 4450,
+  title: "Giant Impact + Moon Forms",
+  type: "context",
+  kicker: "Moon origin hypothesis",
+  body: "A Mars-sized body likely collided with early Earth, mixing and ejecting material. Lower-density debris coalesced into the Moon, helping explain the Earth–Moon chemical similarities."
+},
+{
+  ma: 4400,
+  title: "Water Appears Early",
+  type: "context",
+  kicker: "Possible by ~4.4 Ga",
+  body: "Evidence from ancient minerals suggests liquid water may have existed very early. Possible sources include volcanic outgassing, comet delivery, and meteorites (meteorite water matches Earth’s isotopes better than comets)."
+},
+
+// ===== Archean context (4.0–2.5 Ga) =====
+{
+  ma: 3985,
+  title: "Archean Eon",
+  type: "context",
+  theme: "archean",
+  kicker: "4.0–2.5 Ga",
+  body: "The Archean marks the beginning of a robust rock record. Earth’s surface was cooling and stabilizing compared to the Hadean, and the foundations of continents and early life begin to appear more clearly in the geologic record."
+},
+{
+  ma: 3920,
+  title: "Late Heavy Bombardment",
+  type: "context",
+  theme: "archean",
+  kicker: "~4.1–3.8 Ga",
+  body: "A second spike of asteroid and comet impacts likely struck the Earth and Moon. Evidence from the Moon suggests many craters formed during this interval, possibly triggered by gravitational resonance that disturbed small-body orbits."
+},
+{
+  ma: 3500,
+  title: "First Widely Accepted Fossil Evidence of Life",
+  type: "context",
+  theme: "archean",
+  kicker: "~3.5 Ga",
+  body: "The first well-preserved fossils are stromatolites. These are layered structures built by photosynthetic microbial mats (the texture of these is the pictured background pattern). These record some of the earliest ecosystems preserved in the rock record."
+},
+{
+  ma: 3005,
+  title: "Origins of Continents and Cratons",
+  type: "context",
+  theme: "archean",
+  kicker: "Continental stability emerges",
+  body: "Stable continental interiors (cratons) largely formed in the Archean. These long-lived cores and they became the foundation for later continents, with much tectonic activity occurring around them rather than within them."
+},
+
+// --- Proterozoic context (2.5 Ga – 541 Ma) ---
+{
+  ma: 2400,
+  title: "Proterozoic Eon",
+  type: "context",
+  kicker: "2.5 Ga – 541 Ma",
+  body: "Plate tectonics became more established and continental interiors expanded. Oxygen-producing life existed earlier, but Proterozoic changes transformed ocean/atmosphere chemistry and biology."
+},
+{
+  ma: 2350,
+  title: "Great Oxygenation Event (GOE)",
+  type: "context",
+  kicker: "~2.4–2.0 Ga",
+  body: "Cyanobacteria increased free O₂ in the atmosphere. Many anaerobic organisms declined, and Earth’s surface chemistry changed dramatically."
+},
+{
+  ma: 2200,
+  title: "Banded Iron Formations Peak",
+  type: "context",
+  kicker: "Common until ~2.0 Ga",
+  body: "In low-oxygen oceans, iron stayed dissolved. As oxygen rose, iron oxidized and precipitated, forming iron-rich bands alternating with silica-rich layers (BIFs, the texture is the current background pattern or alternating black and red layers)"
+},
+{
+  ma: 2100,
+  title: "Huronian Glaciation",
+  type: "context",
+  kicker: "~2.1 Ga",
+  body: "Rising oxygen reduced atmospheric methane (a strong greenhouse gas), weakening warming and likely contributing to major global cooling and glaciation."
+},
+{
+  ma: 1000,
+  title: "Rodinia Supercontinent",
+  type: "context",
+  kicker: "Assembled ~1.0 Ga; breakup ~750–600 Ma",
+  body: "Large-scale plate motions assembled Rodinia. Its breakup later created extensive shallow marine environments that supported evolutionary change."
+},
+{
+  ma: 1700,
+  title: "Eukaryotes Appear",
+  type: "context",
+  kicker: "~2.1–1.6 Ga",
+  body: "More complex cells evolved (nucleus + organelles like mitochondria), enabling higher energy use and more biological complexity."
+},
+{
+  ma: 1200,
+  title: "Sexual Reproduction Emerges",
+  type: "context",
+  kicker: "~1.2 Ga",
+  body: "Genetic recombination increased variation and accelerated evolution, supporting more complex organisms and ecosystems."
+},
+{
+  ma: 580,
+  title: "Ediacaran Fauna",
+  type: "context",
+  kicker: "635–541 Ma",
+  body: "Soft-bodied multicellular life became widespread, setting the stage for the Cambrian diversification that follows."
+},
+
+// --- Phanerozoic context (541 Ma – present) ---
+{
+  ma: 300,
+  title: "Life Moves Onto Land",
+  type: "context",
+  kicker: "Paleozoic transitions",
+  body: "Marine ecosystems dominate early Paleozoic. Later, plants and animals establish on land; fishes diversify, jaws evolve, and some lineages develop lungs and limbs that eventually lead to tetrapods."
+},
+{
+  ma: 259,
+  title: "Pangea Assembles",
+  type: "context",
+  kicker: "Late Paleozoic",
+  body: "Continents collide into a supercontinent, changing ocean circulation and climate. Major mountain-building occurs along convergent margins during assembly."
+},
+{
+  ma: 248,
+  title: "Permian Mass Extinction",
+  type: "context",
+  kicker: "End-Permian",
+  body: "Largest known mass extinction in Earth history, with enormous losses in marine species and major impacts on terrestrial ecosystems; often linked to massive flood basalt volcanism and cascading climate/ocean chemistry changes."
+},
+
+  // ===== MAP EVENTS =====
+  { maStart: 3000, maEnd: 2700, dotMa: 2800, title: "Archean", mapSrc: "maps/Archean.svg" },
+  { maStart: 2600, maEnd: 2400, dotMa: 2500, title: "Archean–Proterozoic", mapSrc: "maps/Archean_Proterozoic.svg" },
+  { maStart: 2000, maEnd: 1800, dotMa: 1900, title: "Lower Proterozoic Intrusive", mapSrc: "maps/Lower_proterozoic_intrusive.svg" },
+  { maStart: 1800, maEnd: 1600, dotMa: 1700, title: "Lower Proterozoic (gr + qt)", mapSrc: "maps/lower_proterozoic_gr_qt.svg" },
+  { maStart: 1500, maEnd: 1000, dotMa: 1256, title: "Mid Proterozoic", mapSrc: "maps/mid_proterozoic.svg" },
+  { maStart: 800,  maEnd: 700,  dotMa: 800,  title: "Late Proterozoic", mapSrc: "maps/late_proterozoic.svg" },
+  { maStart: 560,  maEnd: 520,  dotMa: 541,  title: "Early Cambrian", mapSrc: "maps/early_cambrian.svg" },
+  { maStart: 500,  maEnd: 470,  dotMa: 485,  title: "Ordovician", mapSrc: "maps/ordovician.svg" },
+  { maStart: 440,  maEnd: 340,  dotMa: 444,  title: "Late Ordovician–Devonian", mapSrc: "maps/late_ordo_dev.svg" },
+  { maStart: 110,  maEnd: 90,   dotMa: 145,  title: "Cretaceous", mapSrc: "maps/cretaceous.svg" },
+];
+
+    /* =========================
+       DOM
+    ========================== */
+    const eonLayer = document.getElementById('eonLayer');
     const ruler = document.getElementById('ruler');
     const marker = document.getElementById('marker');
     const readout = document.getElementById('readout');
-    const scrollSpacer = document.getElementById('scrollSpacer');
-    const eventsLayer = document.getElementById('eventsLayer');
 
+    const scrollSpacer = document.getElementById('scrollSpacer');
+    const timeBgLayer = document.getElementById('timeBgLayer');
+    const eventsLayer = document.getElementById('eventsLayer');
     const titleText = document.getElementById('titleText');
-    const hintText = document.getElementById('hintText');
-    const endNote = document.getElementById('endNote');
 
     titleText.innerHTML = `Wisconsin Deep Time<br>${startGa.toFixed(2)} Ga → ${endGa.toFixed(2)} Ga`;
-    hintText.innerHTML  = `Scroll down. The left ruler is proportional time. Bold bars show each card’s time range; dots are clickable and jump to the card.`;
-    endNote.textContent = `Bottom of the dashed area = ${endMa} Ma (${endGa.toFixed(2)} Ga).`;
 
-    // ===== SCROLL SCALE =====
+    /* =========================
+       SCROLL SCALE
+    ========================== */
     const pxPerMa = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--px-per-ma'));
     const scrollHeightPx = Math.round(rangeMa * pxPerMa);
     scrollSpacer.style.height = `${scrollHeightPx}px`;
 
-    // Baseline tick spacing
-    const majorStepMa = 100;   // every 100 Ma
-    const labelStepMa = 500;   // thicker every 500 Ma (no labels)
+    const majorStepMa = 100;
+    const labelStepMa = 500;
 
     function gaLabelFromMa(ma){
       return `${(ma / 1000).toFixed(3)} Ga`;
@@ -279,59 +609,108 @@
       return Math.min(startMa, Math.max(endMa, ma));
     }
 
-    // Scroll to a specific Ma (positions the card nicely in view)
-    function scrollToMa(ma){
+    // ✅ Scroll so that marker matches dot exactly (no offset)
+    function scrollToMaAligned(ma){
       const yInSpacer = yInSpacerForMa(ma);
       const spacerTopAbs = scrollSpacer.getBoundingClientRect().top + window.scrollY;
-      const target = spacerTopAbs + yInSpacer - 120; // offset so card isn't flush to top
-
+      const target = spacerTopAbs + yInSpacer;
       window.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
     }
 
-    // ===== RULER: baseline ticks + event range bars + clickable dots =====
-    function buildRuler(){
-      // Clear old ticks/markers (but keep marker/readout)
-      ruler.querySelectorAll('.tick, .event-range, .event-dot').forEach(n => n.remove());
+    /* =========================
+       EON BLOCKS (RULER)
+    ========================== */
+    function buildEons(){
+      eonLayer.innerHTML = "";
 
-      // Baseline ticks
+      eons.forEach(e => {
+        const lo = clampMa(Math.max(e.maEnd, endMa));
+        const hi = clampMa(Math.min(e.maStart, startMa));
+        if(hi <= endMa || lo >= startMa) return;
+
+        const yTop = yInRulerForMa(hi);
+        const yBot = yInRulerForMa(lo);
+        const height = Math.max(12, yBot - yTop);
+
+        const block = document.createElement("div");
+        block.className = "eon-block";
+        block.style.top = `${yTop}px`;
+        block.style.height = `${height}px`;
+        block.style.background = e.tone;
+
+        const label = document.createElement("div");
+        label.className = "eon-label";
+        label.textContent = e.name;
+
+        block.appendChild(label);
+        eonLayer.appendChild(block);
+      });
+    }
+
+    /* =========================
+       BACKGROUND INTERVALS
+    ========================== */
+    function buildTimeBackgrounds(){
+      timeBgLayer.innerHTML = "";
+
+      function addInterval(className, maOlder, maYounger){
+        const top = yInSpacerForMa(maOlder);
+        const bottom = yInSpacerForMa(maYounger);
+        const height = Math.max(0, bottom - top);
+
+        const bg = document.createElement("div");
+        bg.className = `interval-bg ${className}`;
+        bg.style.top = `${top}px`;
+        bg.style.height = `${height}px`;
+        timeBgLayer.appendChild(bg);
+      }
+
+      addInterval("hadean", 4540, 4000);
+      addInterval("archean", 4000, 2500);
+      addInterval("proterozoic", 2500, 541);
+      addInterval("phanerozoic", 541, endMa);
+    }
+
+    /* =========================
+       RULER TICKS + DOTS
+    ========================== */
+    function buildRuler(){
+      ruler.querySelectorAll('.tick, .event-dot').forEach(n => n.remove());
+
+      buildEons();
+
       for(let ma = startMa; ma >= endMa; ma -= majorStepMa){
         const isMajor = (Math.round(ma) % labelStepMa === 0);
-
         const tick = document.createElement('div');
         tick.className = `tick${isMajor ? ' major' : ''}`;
         tick.style.top = `${yInRulerForMa(ma)}px`;
         ruler.appendChild(tick);
       }
 
-      // Event range bars + dots
-      events.forEach((e, idx) => {
-        const lo = clampMa(Math.min(e.maStart ?? e.ma, e.maEnd ?? e.ma));
-        const hi = clampMa(Math.max(e.maStart ?? e.ma, e.maEnd ?? e.ma));
-        const mid = clampMa(e.ma ?? ((lo + hi) / 2));
+      events.forEach((e) => {
+        if (e.type === "context") return;
 
-        const yTop = yInRulerForMa(hi);
-        const yBot = yInRulerForMa(lo);
-        const height = Math.max(8, yBot - yTop);
-
-        const bar = document.createElement('div');
-        bar.className = 'event-range';
-        bar.style.top = `${yTop}px`;
-        bar.style.height = `${height}px`;
-        bar.title = `${e.title} (${hi}–${lo} Ma)`;
-        bar.addEventListener('click', () => scrollToMa(mid));
-        ruler.appendChild(bar);
+        const dotMa = clampMa(
+          (typeof e.dotMa === "number") ? e.dotMa :
+          (typeof e.ma === "number") ? e.ma :
+          (typeof e.maStart === "number" && typeof e.maEnd === "number")
+            ? (e.maStart + e.maEnd) / 2
+            : null
+        );
+        if(dotMa === null) return;
 
         const dot = document.createElement('div');
         dot.className = 'event-dot';
-        dot.style.top = `${yInRulerForMa(mid)}px`;
-        dot.style.transform = 'translateY(-50%)';
-        dot.title = `${e.title} — jump`;
-        dot.addEventListener('click', () => scrollToMa(mid));
+        dot.style.top = `${yInRulerForMa(dotMa)}px`;
+        dot.title = `${e.title ?? ""} (${(dotMa/1000).toFixed(3)} Ga)`;
+        dot.addEventListener('click', () => scrollToMaAligned(dotMa));
         ruler.appendChild(dot);
       });
     }
 
-    // ===== MARKER + moving readout bubble =====
+    /* =========================
+       MARKER + READOUT
+    ========================== */
     function updateFromScroll(){
       const spacerTopAbs = scrollSpacer.getBoundingClientRect().top + window.scrollY;
       const raw = (window.scrollY - spacerTopAbs) / scrollHeightPx;
@@ -345,34 +724,73 @@
       readout.textContent = gaLabelFromMa(currentMa);
     }
 
-    // ===== EVENTS RENDER =====
+    /* =========================
+       EVENTS RENDER
+    ========================== */
     function addEvent(e){
-      const el = document.createElement('section');
-      el.className = 'event';
-      el.style.top = `${yInSpacerForMa(e.ma)}px`;
+        const el = document.createElement('section');
+        el.className = 'event';
 
-      el.innerHTML = `
-        <div class="map-frame">
-          <img src="${e.mapSrc}" alt="${e.title}">
-        </div>
-      `;
+        // Theme classes (only matters if you have theme CSS)
+        if (e.theme) el.classList.add(`theme-${e.theme}`);
 
-      eventsLayer.appendChild(el);
-    }
+        let topMa = null;
 
+        // CONTEXT
+        if (e.type === "context" && typeof e.ma === "number") {
+            topMa = e.ma;
+            el.classList.add("event-context");
 
+            el.innerHTML = `
+            <div class="context-block">
+                <div class="context-inner">
+                <div class="context-kicker">${e.kicker ?? ""}</div>
+                <h2 class="context-title">${e.title ?? ""}</h2>
+                <p class="context-body">${e.body ?? ""}</p>
+                </div>
+            </div>
+            `;
+            el.style.top = `${yInSpacerForMa(topMa)}px`;
+            eventsLayer.appendChild(el);
+            return;
+        }
 
-    // ===== INIT =====
-    // Build after layout exists so ruler has height
+        // MAPS (dotMa controls dot + card placement)
+        el.classList.add("event-map");
+
+        if (typeof e.dotMa === "number") topMa = e.dotMa;
+        else if (typeof e.maStart === "number") topMa = e.maStart;
+
+        if (topMa === null) {
+            console.warn("Map event missing dotMa/maStart:", e);
+            return;
+        }
+
+        el.style.top = `${yInSpacerForMa(topMa)}px`;
+        el.innerHTML = `
+            <div class="map-frame">
+            <img src="${e.mapSrc}" alt="${e.title ?? "Bedrock map"}">
+            </div>
+        `;
+        eventsLayer.appendChild(el);
+        }
+
+    /* =========================
+       INIT
+    ========================== */
     window.addEventListener('load', () => {
       buildRuler();
+      buildTimeBackgrounds();
+      eventsLayer.innerHTML = "";
       events.forEach(addEvent);
       updateFromScroll();
     });
 
     window.addEventListener('scroll', updateFromScroll, { passive: true });
+
     window.addEventListener('resize', () => {
       buildRuler();
+      buildTimeBackgrounds();
       updateFromScroll();
     });
   </script>
